@@ -1,4 +1,3 @@
 streamlit
-pydub
 ffmpeg-python
-faster-whisper
+openai-whisper
