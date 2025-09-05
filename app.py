@@ -37,7 +37,8 @@ if uploaded_file is not None:
             st.write("- " + m)
 
     # 🔹 كشف التوقفات (الصمت)
-    silent_ranges = silence.detect_silence(audio, min_silence_len=700, silence_thresh=audio.dBFS-16)
+    # silent_ranges = silence.detect_silence(audio, min_silence_len=700, silence_thresh=audio.dBFS-16)
+
 
     if silent_ranges:
         st.subheader("⏸️ التوقفات المكتشفة:")
