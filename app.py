@@ -39,9 +39,7 @@ if uploaded_file is not None:
     # 🔹 كشف التوقفات (الصمت)
     # silent_ranges = silence.detect_silence(audio, min_silence_len=700, silence_thresh=audio.dBFS-16)
 
-
-        st.subheader("⏸️ التوقفات المكتشفة:")
       
-            st.write(f"- توقف من {start/1000:.2f} ثانية إلى {end/1000:.2f} ثانية")
+            
     else:
         st.write("✅ لا يوجد توقفات طويلة ملحوظة.")
