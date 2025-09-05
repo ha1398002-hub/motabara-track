@@ -1,30 +1,67 @@
 import streamlit as st
-import whisper
+import tempfile
+import os
+from faster_whisper import WhisperModel
 
-# إعدادات الصفحة
-st.set_page_config(page_title="تطبيق مثابرة تراك", page_icon="🎤", layout="centered")
+# تهيئة الموديل
+model = WhisperModel("small", device="cpu", compute_type="int8")
 
-st.title("🎤 تطبيق مثابرة تراك")
-st.write("السلام عليكم ورحمة الله وبركاته 👋")
-st.write("ارفع أي ملف صوتي، والتطبيق هيحوّله إلى نص مكتوب.")
+st.title("📌 مثابرة تراك - تحليل النطق")
+st.write("ارفع تسجيل صوتي (mp3, wav, m4a ...) وهحللهولك 👂")
 
-# رفع ملف صوت (أي نوع)
-uploaded_file = st.file_uploader("📂 ارفع ملف صوت (أي صيغة مدعومة)", type=None)
+# رفع ملف الصوت
+uploaded_file = st.file_uploader("🎤 ارفع تسجيلك هنا", type=["mp3", "wav", "m4a"])
 
 if uploaded_file is not None:
-    # حفظ الملف المرفوع مؤقتًا بنفس الامتداد
-    filename = "audio_input." + uploaded_file.name.split(".")[-1]
-    with open(filename, "wb") as f:
-        f.write(uploaded_file.read())
+    # حفظ الملف مؤقتًا
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+        tmp.write(uploaded_file.read())
+        temp_filename = tmp.name
 
-    st.info("⏳ جاري تحويل الصوت إلى نص...")
+    # تحويل الصوت لنص
+    st.info("⏳ جاري التحويل للنص...")
+    segments, info = model.transcribe(temp_filename, beam_size=5)
+    text = " ".join([seg.text for seg in segments])
+    st.success("✅ التحويل خلص")
+    st.write("النص المستخرج:")
+    st.text(text)
 
-    # تحميل نموذج Whisper
-    model = whisper.load_model("base")
+    # ----------------------------
+    # التحليل
+    # ----------------------------
+    feedback = []
 
-    # تحويل الصوت إلى نص
-    result = model.transcribe(filename, language="ar")
+    # 1️⃣ كشف التكرار (كلمات)
+    words = text.split()
+    for i in range(1, len(words)):
+        if words[i] == words[i-1]:
+            feedback.append(f"🔁 كررت كلمة: '{words[i]}'")
 
-    # عرض النص
-    st.success("✅ النص المستخرج:")
-    st.write(result["text"])
+    # 2️⃣ كشف التكرار (حروف)
+    for word in words:
+        for i in range(1, len(word)):
+            if word[i] == word[i-1]:
+                feedback.append(f"🔁 كررت حرف '{word[i]}' في كلمة '{word}'")
+
+    # 3️⃣ كشف الاستبدال الشائع
+    substitutions = {
+        "س": ["ث", "ش"],
+        "ر": ["ل", "ي"],
+        "غ": ["ق", "ك"]
+    }
+
+    for correct, wrong_list in substitutions.items():
+        for wrong in wrong_list:
+            if wrong in text:
+                feedback.append(f"❌ قلت '{wrong}' بدل '{correct}'")
+
+    # عرض الملاحظات
+    st.subheader("📊 ملاحظات التحليل")
+    if feedback:
+        for f in feedback:
+            st.warning(f)
+    else:
+        st.success("👌 النطق سليم (مفيش مشاكل واضحة)")
+
+    # حذف الملف المؤقت
+    os.remove(temp_filename)
