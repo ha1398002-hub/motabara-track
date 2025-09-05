@@ -1,67 +1,49 @@
 import streamlit as st
-import tempfile
-import os
 from faster_whisper import WhisperModel
+from pydub import AudioSegment, silence
+import tempfile
 
-# تهيئة الموديل
-model = WhisperModel("small", device="cpu", compute_type="int8")
+st.title("تطبيق مثابرة تراك 🎤")
+st.write("السلام عليكم ورحمة الله وبركاتة 👋، Streamlit")
 
-st.title("📌 مثابرة تراك - تحليل النطق")
-st.write("ارفع تسجيل صوتي (mp3, wav, m4a ...) وهحللهولك 👂")
-
-# رفع ملف الصوت
-uploaded_file = st.file_uploader("🎤 ارفع تسجيلك هنا", type=["mp3", "wav", "m4a"])
+uploaded_file = st.file_uploader("📂 ارفع ملف صوتي", type=["wav", "mp3", "m4a", "ogg"])
 
 if uploaded_file is not None:
-    # حفظ الملف مؤقتًا
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
         tmp.write(uploaded_file.read())
-        temp_filename = tmp.name
+        temp_wav = tmp.name
 
-    # تحويل الصوت لنص
-    st.info("⏳ جاري التحويل للنص...")
-    segments, info = model.transcribe(temp_filename, beam_size=5)
-    text = " ".join([seg.text for seg in segments])
-    st.success("✅ التحويل خلص")
-    st.write("النص المستخرج:")
-    st.text(text)
+    # تفريغ الكلام باستخدام Whisper
+    model = WhisperModel("base", device="cpu", compute_type="int8")
+    segments, _ = model.transcribe(temp_wav, beam_size=5)
 
-    # ----------------------------
-    # التحليل
-    # ----------------------------
-    feedback = []
+    text = " ".join([segment.text for segment in segments])
+    st.subheader("📝 النص المكتشف:")
+    st.write(text)
 
-    # 1️⃣ كشف التكرار (كلمات)
-    words = text.split()
-    for i in range(1, len(words)):
-        if words[i] == words[i-1]:
-            feedback.append(f"🔁 كررت كلمة: '{words[i]}'")
+    # كشف الأخطاء البسيطة (بدل الحروف)
+    mistakes = []
+    if "ث" in text:
+        mistakes.append("تم نطق السين كثاء (ث بدل س)")
+    if "ش" in text:
+        mistakes.append("تم نطق السين كـ ش")
+    if "ي" in text or "ل" in text:
+        mistakes.append("احتمال استبدال الراء (ر) بـ ي/ل")
+    if "غ" in text:
+        mistakes.append("احتمال استبدال الراء (ر) بـ غ")
 
-    # 2️⃣ كشف التكرار (حروف)
-    for word in words:
-        for i in range(1, len(word)):
-            if word[i] == word[i-1]:
-                feedback.append(f"🔁 كررت حرف '{word[i]}' في كلمة '{word}'")
+    if mistakes:
+        st.subheader("🚨 ملاحظات على النطق:")
+        for m in mistakes:
+            st.write("- " + m)
 
-    # 3️⃣ كشف الاستبدال الشائع
-    substitutions = {
-        "س": ["ث", "ش"],
-        "ر": ["ل", "ي"],
-        "غ": ["ق", "ك"]
-    }
+    # 🔹 كشف التوقفات (الصمت)
+    audio = AudioSegment.from_file(temp_wav, format="wav")
+    silent_ranges = silence.detect_silence(audio, min_silence_len=700, silence_thresh=audio.dBFS-16)
 
-    for correct, wrong_list in substitutions.items():
-        for wrong in wrong_list:
-            if wrong in text:
-                feedback.append(f"❌ قلت '{wrong}' بدل '{correct}'")
-
-    # عرض الملاحظات
-    st.subheader("📊 ملاحظات التحليل")
-    if feedback:
-        for f in feedback:
-            st.warning(f)
+    if silent_ranges:
+        st.subheader("⏸️ التوقفات المكتشفة:")
+        for start, end in silent_ranges:
+            st.write(f"- توقف من {start/1000:.2f} ثانية إلى {end/1000:.2f} ثانية")
     else:
-        st.success("👌 النطق سليم (مفيش مشاكل واضحة)")
-
-    # حذف الملف المؤقت
-    os.remove(temp_filename)
+        st.write("✅ لا يوجد توقفات طويلة ملحوظة.")
