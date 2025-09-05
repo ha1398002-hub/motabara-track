@@ -2,3 +2,4 @@ streamlit
 faster-whisper
 pydub
 ffmpeg-python
+audioop-lts
