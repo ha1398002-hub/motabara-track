@@ -1,6 +1,5 @@
 import streamlit as st
 from faster_whisper import WhisperModel
-from pydub import AudioSegment, silence
 import tempfile
 
 st.title("تطبيق مثابرة تراك 🎤")
@@ -38,7 +37,6 @@ if uploaded_file is not None:
             st.write("- " + m)
 
     # 🔹 كشف التوقفات (الصمت)
-    audio = AudioSegment.from_file(temp_wav, format="wav")
     silent_ranges = silence.detect_silence(audio, min_silence_len=700, silence_thresh=audio.dBFS-16)
 
     if silent_ranges:
